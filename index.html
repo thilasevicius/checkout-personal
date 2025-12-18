@@ -1183,10 +1183,17 @@
             // Dados
             document.getElementById('success-product').textContent = checkoutData.produto_nome;
             
-            const valor = result.cobranca?.amount 
-                ? formatCurrency(result.cobranca.amount / 100)
+            // Usa valor_cobrado da resposta (inclui juros se parcelado)
+            const valor = result.valor_cobrado 
+                ? formatCurrency(result.valor_cobrado)
                 : formatCurrency(checkoutData.produto_preco);
             document.getElementById('success-value').textContent = valor;
+            
+            // Mostrar parcelas se houver
+            if (result.parcelas && result.parcelas > 1 && result.valor_parcela) {
+                document.getElementById('success-value').textContent = 
+                    `${result.parcelas}x de ${formatCurrency(result.valor_parcela)}`;
+            }
         }
 
         function showPending(result) {
@@ -1202,8 +1209,9 @@
             // Dados
             document.getElementById('pending-product').textContent = checkoutData.produto_nome;
             
-            const valor = result.cobranca?.amount 
-                ? formatCurrency(result.cobranca.amount / 100)
+            // Usa valor_cobrado da resposta
+            const valor = result.valor_cobrado 
+                ? formatCurrency(result.valor_cobrado)
                 : formatCurrency(checkoutData.produto_preco);
             document.getElementById('pending-value').textContent = valor;
 
