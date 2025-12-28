@@ -805,6 +805,7 @@
         let checkoutData = null;
         let selectedMethod = 'credit_card';
         let boletoUrl = '';
+        let alunoId = null; // NOVO: armazenar aluno_id para vinculação automática
 
         // ============================================
         // INICIALIZAÇÃO
@@ -828,6 +829,9 @@
             const slug = pathParts[0];
             const params = new URLSearchParams(window.location.search);
             const produtoId = params.get('produtoId');
+            
+            // NOVO: Pegar aluno_id se existir (link personalizado)
+            alunoId = params.get('aluno_id');
 
             if (!slug || !produtoId) {
                 throw new Error('Parâmetros inválidos');
@@ -1119,6 +1123,9 @@
                     tenant_id: checkoutData.tenant_id,
                     metodo_pagamento: selectedMethod,
                     parcelas: parcelas,
+                    // NOVO: Enviar aluno_id se existir (vinculação automática)
+                    aluno_id: alunoId || null,
+                    // Dados do comprador (sempre salvos para vinculação posterior se necessário)
                     aluno_nome: document.getElementById('nome').value.trim(),
                     aluno_email: document.getElementById('email').value.trim(),
                     aluno_cpf: document.getElementById('cpf').value.replace(/\D/g, ''),
