@@ -535,6 +535,67 @@
             text-decoration: none;
         }
 
+        /* Next Steps Section */
+        .next-steps {
+            margin-top: 24px;
+            padding: 20px;
+            background: #F0FDF4;
+            border-radius: 12px;
+            border: 1px solid #BBF7D0;
+        }
+
+        .next-steps-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 16px;
+        }
+
+        .next-steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .next-step-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: #166534;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            font-size: 14px;
+            color: #166534;
+        }
+
+        .step-text strong {
+            color: #14532D;
+            word-break: break-all;
+        }
+
+        .access-app-btn {
+            margin-top: 24px;
+            background: var(--secondary-color) !important;
+        }
+
+        .access-app-btn:hover {
+            background: #059669 !important;
+        }
+
         /* Secure badge */
         .secure-badge {
             display: flex;
@@ -719,8 +780,31 @@
                     </div>
                 </div>
 
-                <p style="color: var(--text-secondary); font-size: 14px;">
-                    Você receberá um e-mail com os detalhes da sua compra.
+                <!-- Próximos passos -->
+                <div class="next-steps">
+                    <div class="next-steps-title">📱 Próximos passos</div>
+                    <div class="next-steps-list">
+                        <div class="next-step-item">
+                            <span class="step-number">1</span>
+                            <span class="step-text">Acesse o app pelo botão abaixo</span>
+                        </div>
+                        <div class="next-step-item">
+                            <span class="step-number">2</span>
+                            <span class="step-text">Faça login com: <strong id="success-email"></strong></span>
+                        </div>
+                        <div class="next-step-item">
+                            <span class="step-number">3</span>
+                            <span class="step-text">Sua senha foi enviada por e-mail</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="submit-btn access-app-btn" onclick="accessApp()">
+                    🚀 Acessar o App
+                </button>
+
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 16px;">
+                    Você também receberá um e-mail com os detalhes da sua compra.
                 </p>
             </div>
         </div>
@@ -1201,6 +1285,16 @@
                 document.getElementById('success-value').textContent = 
                     `${result.parcelas}x de ${formatCurrency(result.valor_parcela)}`;
             }
+
+            // Mostrar email para login
+            const emailUsado = document.getElementById('email').value.trim();
+            document.getElementById('success-email').textContent = emailUsado;
+        }
+
+        function accessApp() {
+            // URL do app - pode ser personalizada por tenant no futuro
+            const appUrl = checkoutData.app_url || 'https://app.personaltrainer.com';
+            window.open(appUrl, '_blank');
         }
 
         function showPending(result) {
