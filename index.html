@@ -1292,8 +1292,8 @@
         }
 
         function accessApp() {
-            // URL do app - pode ser personalizada por tenant no futuro
-            const appUrl = checkoutData.app_url || 'https://app.personaltrainer.com';
+            // URL do app - TODO: configurar subdomínio por personal
+            const appUrl = checkoutData.app_url || 'http://localhost:3000';
             window.open(appUrl, '_blank');
         }
 
