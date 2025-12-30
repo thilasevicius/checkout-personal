@@ -832,7 +832,7 @@
                 <!-- Boleto -->
                 <div id="boleto-section" class="hidden">
                     <div class="copy-code" id="boleto-code"></div>
-                    <button class="copy-btn" onclick="copyCode('boleto')">📋 Copiar código de barras</button>
+                    <button class="copy-btn" onclick="copyCode('boleto')">📋 Copiar linha digitável</button>
                     <br><br>
                     <button class="copy-btn" onclick="openBoleto()" style="background: var(--secondary-color);">
                         📄 Abrir boleto
@@ -889,7 +889,7 @@
         let checkoutData = null;
         let selectedMethod = 'credit_card';
         let boletoUrl = '';
-        let alunoId = null; // NOVO: armazenar aluno_id para vinculação automática
+        let alunoId = null;
 
         // ============================================
         // INICIALIZAÇÃO
@@ -908,20 +908,17 @@
         // CARREGAR DADOS DO CHECKOUT
         // ============================================
         async function loadCheckoutData() {
-            // Pegar parâmetros da URL
             const pathParts = window.location.pathname.split('/').filter(Boolean);
             const slug = pathParts[0];
             const params = new URLSearchParams(window.location.search);
             const produtoId = params.get('produtoId');
             
-            // NOVO: Pegar aluno_id se existir (link personalizado)
             alunoId = params.get('aluno_id');
 
             if (!slug || !produtoId) {
                 throw new Error('Parâmetros inválidos');
             }
 
-            // Buscar dados do Supabase
             const response = await fetch(
                 `${SUPABASE_URL}/rest/v1/view_checkout?slug=eq.${slug}&produto_id=eq.${produtoId}`,
                 {
@@ -946,11 +943,9 @@
         // RENDERIZAR CHECKOUT
         // ============================================
         function renderCheckout() {
-            // Esconder loading, mostrar form
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('checkout-form').classList.remove('hidden');
 
-            // Aplicar cores dinâmicas
             if (checkoutData.primary_color) {
                 document.documentElement.style.setProperty('--primary-color', checkoutData.primary_color);
             }
@@ -958,7 +953,6 @@
                 document.documentElement.style.setProperty('--secondary-color', checkoutData.secondary_color);
             }
 
-            // Logo
             const logoContainer = document.getElementById('logo-container');
             if (checkoutData.logo_url) {
                 logoContainer.innerHTML = `<img src="${checkoutData.logo_url}" alt="Logo" class="logo">`;
@@ -967,18 +961,12 @@
                 logoContainer.innerHTML = `<div class="logo-placeholder">${initial}</div>`;
             }
 
-            // Info do personal
             document.getElementById('personal-name').textContent = checkoutData.personal_nome || checkoutData.company_name || 'Personal Trainer';
-
-            // Produto
             document.getElementById('product-name').textContent = checkoutData.produto_nome || 'Produto';
             document.getElementById('product-description').textContent = checkoutData.produto_descricao || '';
             document.getElementById('product-price').textContent = formatCurrency(checkoutData.produto_preco);
-
-            // Atualizar título da página
             document.title = `Checkout - ${checkoutData.produto_nome}`;
 
-            // Gerar opções de parcelas
             generateInstallmentOptions();
         }
 
@@ -1001,12 +989,10 @@
                     option.textContent = `1x de ${formatCurrency(preco)} sem juros`;
                 } else {
                     if (repassarJuros) {
-                        // Calcular com juros (fórmula Price)
                         const valorParcela = calculateInstallment(preco, i, INTEREST_RATE);
                         const valorTotal = valorParcela * i;
                         option.textContent = `${i}x de ${formatCurrency(valorParcela)} (Total: ${formatCurrency(valorTotal)})`;
                     } else {
-                        // Sem juros para o cliente
                         const valorParcela = preco / i;
                         option.textContent = `${i}x de ${formatCurrency(valorParcela)} sem juros`;
                     }
@@ -1015,7 +1001,6 @@
                 select.appendChild(option);
             }
 
-            // Esconder seção de parcelas se só tem 1x
             if (maxParcelas <= 1) {
                 document.getElementById('installments-group').classList.add('hidden');
             }
@@ -1023,8 +1008,6 @@
 
         function calculateInstallment(principal, months, monthlyRate) {
             if (months === 1) return principal;
-            
-            // Fórmula Price: PMT = PV * [i(1+i)^n] / [(1+i)^n - 1]
             const factor = Math.pow(1 + monthlyRate, months);
             return principal * (monthlyRate * factor) / (factor - 1);
         }
@@ -1033,14 +1016,12 @@
         // EVENT LISTENERS
         // ============================================
         function setupEventListeners() {
-            // Métodos de pagamento
             document.querySelectorAll('.payment-method').forEach(el => {
                 el.addEventListener('click', () => {
                     document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
                     el.classList.add('active');
                     selectedMethod = el.dataset.method;
 
-                    // Mostrar/esconder form de cartão
                     const cardSection = document.getElementById('card-section');
                     if (selectedMethod === 'credit_card') {
                         cardSection.classList.remove('hidden');
@@ -1050,7 +1031,6 @@
                 });
             });
 
-            // Máscaras de input
             document.getElementById('cpf').addEventListener('input', (e) => {
                 e.target.value = maskCPF(e.target.value);
             });
@@ -1076,7 +1056,6 @@
                     e.target.value.toUpperCase() || 'SEU NOME';
             });
 
-            // Submit
             document.getElementById('submit-btn').addEventListener('click', submitPayment);
         }
 
@@ -1194,7 +1173,6 @@
             const btn = document.getElementById('submit-btn');
             const btnText = document.getElementById('btn-text');
 
-            // Loading state
             btn.disabled = true;
             btnText.innerHTML = '<div class="spinner-small"></div> Processando...';
 
@@ -1207,9 +1185,7 @@
                     tenant_id: checkoutData.tenant_id,
                     metodo_pagamento: selectedMethod,
                     parcelas: parcelas,
-                    // NOVO: Enviar aluno_id se existir (vinculação automática)
                     aluno_id: alunoId || null,
-                    // Dados do comprador (sempre salvos para vinculação posterior se necessário)
                     aluno_nome: document.getElementById('nome').value.trim(),
                     aluno_email: document.getElementById('email').value.trim(),
                     aluno_cpf: document.getElementById('cpf').value.replace(/\D/g, ''),
@@ -1223,6 +1199,8 @@
                     payload.cartao_nome = document.getElementById('card-name').value.trim();
                 }
 
+                console.log('Enviando payload:', payload);
+
                 const response = await fetch(EDGE_FUNCTION_URL, {
                     method: 'POST',
                     headers: {
@@ -1233,6 +1211,7 @@
                 });
 
                 const result = await response.json();
+                console.log('Resposta da API:', result);
 
                 if (result.success) {
                     if (selectedMethod === 'credit_card') {
@@ -1265,34 +1244,28 @@
             document.getElementById('checkout-form').classList.add('hidden');
             document.getElementById('result-success').classList.remove('hidden');
 
-            // Copiar logo
             const logoContainer = document.getElementById('logo-container').innerHTML;
             document.getElementById('success-logo-container').innerHTML = logoContainer;
             document.getElementById('success-personal-name').textContent = 
                 checkoutData.personal_nome || checkoutData.company_name;
 
-            // Dados
             document.getElementById('success-product').textContent = checkoutData.produto_nome;
             
-            // Usa valor_cobrado da resposta (inclui juros se parcelado)
             const valor = result.valor_cobrado 
                 ? formatCurrency(result.valor_cobrado)
                 : formatCurrency(checkoutData.produto_preco);
             document.getElementById('success-value').textContent = valor;
             
-            // Mostrar parcelas se houver
             if (result.parcelas && result.parcelas > 1 && result.valor_parcela) {
                 document.getElementById('success-value').textContent = 
                     `${result.parcelas}x de ${formatCurrency(result.valor_parcela)}`;
             }
 
-            // Mostrar email para login
             const emailUsado = document.getElementById('email').value.trim();
             document.getElementById('success-email').textContent = emailUsado;
         }
 
         function accessApp() {
-            // URL do app - TODO: configurar subdomínio por personal
             const appUrl = checkoutData.app_url || 'http://localhost:3000';
             window.open(appUrl, '_blank');
         }
@@ -1310,39 +1283,52 @@
             // Dados
             document.getElementById('pending-product').textContent = checkoutData.produto_nome;
             
-            // Usa valor_cobrado da resposta
             const valor = result.valor_cobrado 
                 ? formatCurrency(result.valor_cobrado)
                 : formatCurrency(checkoutData.produto_preco);
             document.getElementById('pending-value').textContent = valor;
 
-            // PIX
+            // ============================================
+            // PIX - CORRIGIDO: usar result.pix
+            // ============================================
             if (selectedMethod === 'pix') {
                 document.getElementById('pending-subtitle').textContent = 
                     'Escaneie o QR Code ou copie o código para pagar.';
                 document.getElementById('qr-code-section').classList.remove('hidden');
                 
-                if (result.cobranca?.qr_code_url) {
-                    document.getElementById('qr-code-img').src = result.cobranca.qr_code_url;
-                }
-                if (result.cobranca?.qr_code) {
-                    document.getElementById('pix-code').textContent = result.cobranca.qr_code;
+                // CORRIGIDO: result.pix.qrcode_url (não result.cobranca.qr_code_url)
+                if (result.pix?.qrcode_url) {
+                    document.getElementById('qr-code-img').src = result.pix.qrcode_url;
+                    console.log('QR Code URL:', result.pix.qrcode_url);
                 }
                 
-                document.getElementById('expires-time').textContent = '30 minutos';
+                // CORRIGIDO: result.pix.qrcode (não result.cobranca.qr_code)
+                if (result.pix?.qrcode) {
+                    document.getElementById('pix-code').textContent = result.pix.qrcode;
+                    console.log('PIX Code:', result.pix.qrcode.substring(0, 50) + '...');
+                }
+                
+                document.getElementById('expires-time').textContent = '24 horas';
             }
 
-            // Boleto
+            // ============================================
+            // BOLETO - CORRIGIDO: usar result.boleto
+            // ============================================
             if (selectedMethod === 'boleto') {
                 document.getElementById('pending-subtitle').textContent = 
-                    'Copie o código de barras ou abra o boleto para pagar.';
+                    'Copie a linha digitável ou abra o boleto para pagar.';
                 document.getElementById('boleto-section').classList.remove('hidden');
                 
-                if (result.cobranca?.boleto_barcode) {
-                    document.getElementById('boleto-code').textContent = result.cobranca.boleto_barcode;
+                // CORRIGIDO: result.boleto.linha_digitavel (não result.cobranca.boleto_barcode)
+                if (result.boleto?.linha_digitavel) {
+                    document.getElementById('boleto-code').textContent = result.boleto.linha_digitavel;
+                    console.log('Linha digitável:', result.boleto.linha_digitavel);
                 }
-                if (result.cobranca?.boleto_url) {
-                    boletoUrl = result.cobranca.boleto_url;
+                
+                // CORRIGIDO: result.boleto.url (não result.cobranca.boleto_url)
+                if (result.boleto?.url) {
+                    boletoUrl = result.boleto.url;
+                    console.log('Boleto URL:', boletoUrl);
                 }
                 
                 document.getElementById('expires-time').textContent = '3 dias úteis';
@@ -1369,7 +1355,6 @@
             navigator.clipboard.writeText(code).then(() => {
                 alert('Código copiado!');
             }).catch(() => {
-                // Fallback para navegadores antigos
                 const textarea = document.createElement('textarea');
                 textarea.value = code;
                 document.body.appendChild(textarea);
