@@ -151,6 +151,31 @@
             color: var(--success);
         }
 
+        /* Currency Selector */
+        .currency-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .currency-selector select {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .currency-selector select:hover {
+            border-color: var(--primary-light);
+        }
+
         /* Product Card */
         .product-card {
             background: var(--surface);
@@ -225,6 +250,9 @@
             margin-top: 20px;
             padding-top: 20px;
             border-top: 2px dashed var(--border);
+        }
+
+        .price-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -243,6 +271,26 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .currency-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .currency-note svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            color: var(--primary-color);
         }
 
         /* Form Sections */
@@ -875,6 +923,8 @@
                     </svg>
                     Checkout seguro
                 </p>
+                <!-- Currency Selector - será adicionado dinamicamente -->
+                <div id="currency-selector-container"></div>
             </div>
 
             <!-- Product Card -->
@@ -887,8 +937,18 @@
                     </div>
                 </div>
                 <div class="product-price">
-                    <div class="label">Valor total</div>
-                    <div class="value" id="product-price">R$ 0,00</div>
+                    <div class="price-row">
+                        <div class="label">Valor total</div>
+                        <div class="value" id="product-price">R$ 0,00</div>
+                    </div>
+                    <!-- Nota de conversão de moeda - aparece se não for BRL -->
+                    <div class="currency-note hidden" id="currency-note">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span id="currency-note-text"></span>
+                    </div>
                 </div>
             </div>
 
@@ -1166,12 +1226,209 @@
 
     <script>
         // ============================================
-        // CONFIGURAÇÃO - ALTERE AQUI
+        // CONFIGURAÇÃO
         // ============================================
         const SUPABASE_URL = 'https://htdvkqlmshpiterrwacp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0ZHZrcWxtc2hwaXRlcnJ3YWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5Mjg1ODAsImV4cCI6MjA3NzUwNDU4MH0.zWEjvCsZv9tFSn1QB0IGbouotpWmi-a2LoxTd1To9ms';
         const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/criar-cobranca`;
-        const INTEREST_RATE = 0.0199; // 1.99% ao mês
+        const INTEREST_RATE = 0.0199;
+
+        // ============================================
+        // SISTEMA DE DETECÇÃO DE MOEDA
+        // ============================================
+        const COUNTRY_TO_CURRENCY = {
+            'BR': { currency: 'BRL', symbol: 'R$', name: 'Real Brasileiro', flag: '🇧🇷' },
+            'AR': { currency: 'ARS', symbol: 'ARS$', name: 'Peso Argentino', flag: '🇦🇷' },
+            'CL': { currency: 'CLP', symbol: 'CLP$', name: 'Peso Chileno', flag: '🇨🇱' },
+            'CO': { currency: 'COP', symbol: 'COP$', name: 'Peso Colombiano', flag: '🇨🇴' },
+            'PE': { currency: 'PEN', symbol: 'S/', name: 'Sol Peruano', flag: '🇵🇪' },
+            'UY': { currency: 'UYU', symbol: 'UYU$', name: 'Peso Uruguaio', flag: '🇺🇾' },
+            'PY': { currency: 'PYG', symbol: '₲', name: 'Guarani', flag: '🇵🇾' },
+            'MX': { currency: 'MXN', symbol: 'MX$', name: 'Peso Mexicano', flag: '🇲🇽' },
+            'US': { currency: 'USD', symbol: '$', name: 'Dólar Americano', flag: '🇺🇸' },
+            'CA': { currency: 'CAD', symbol: 'C$', name: 'Dólar Canadense', flag: '🇨🇦' },
+            'PT': { currency: 'EUR', symbol: '€', name: 'Euro', flag: '🇵🇹' },
+            'ES': { currency: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇸' },
+            'FR': { currency: 'EUR', symbol: '€', name: 'Euro', flag: '🇫🇷' },
+            'DE': { currency: 'EUR', symbol: '€', name: 'Euro', flag: '🇩🇪' },
+            'IT': { currency: 'EUR', symbol: '€', name: 'Euro', flag: '🇮🇹' },
+            'GB': { currency: 'GBP', symbol: '£', name: 'Libra Esterlina', flag: '🇬🇧' },
+            'JP': { currency: 'JPY', symbol: '¥', name: 'Iene Japonês', flag: '🇯🇵' },
+            'AU': { currency: 'AUD', symbol: 'A$', name: 'Dólar Australiano', flag: '🇦🇺' },
+            'AO': { currency: 'AOA', symbol: 'Kz', name: 'Kwanza Angolano', flag: '🇦🇴' },
+            'MZ': { currency: 'MZN', symbol: 'MT', name: 'Metical', flag: '🇲🇿' },
+        };
+
+        let userCurrency = {
+            country: 'BR',
+            currency: 'BRL',
+            symbol: 'R$',
+            name: 'Real Brasileiro',
+            flag: '🇧🇷',
+            exchangeRate: 1,
+            detected: false
+        };
+
+        // Detectar país do usuário
+        async function detectUserCountry() {
+            try {
+                const response = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+                if (!response.ok) throw new Error('API indisponível');
+                const data = await response.json();
+                return data.country_code || 'BR';
+            } catch (error) {
+                console.warn('Erro ao detectar país:', error);
+                return 'BR';
+            }
+        }
+
+        // Buscar taxa de câmbio
+        async function getExchangeRate(targetCurrency) {
+            if (targetCurrency === 'BRL') return 1;
+            
+            try {
+                const response = await fetch(`https://api.frankfurter.app/latest?from=BRL&to=${targetCurrency}`);
+                if (!response.ok) throw new Error('API de câmbio indisponível');
+                const data = await response.json();
+                return data.rates[targetCurrency] || 1;
+            } catch (error) {
+                console.warn('Erro ao buscar câmbio:', error);
+                // Taxas de fallback aproximadas
+                const fallbackRates = {
+                    'USD': 0.17, 'EUR': 0.16, 'GBP': 0.14, 'ARS': 150,
+                    'CLP': 160, 'COP': 700, 'MXN': 3.0, 'PEN': 0.65,
+                    'UYU': 7.0, 'CAD': 0.23, 'AUD': 0.26, 'JPY': 25
+                };
+                return fallbackRates[targetCurrency] || 1;
+            }
+        }
+
+        // Inicializar sistema de moeda
+        async function initializeCurrencySystem() {
+            try {
+                const countryCode = await detectUserCountry();
+                console.log('🌍 País detectado:', countryCode);
+                
+                const currencyInfo = COUNTRY_TO_CURRENCY[countryCode] || COUNTRY_TO_CURRENCY['BR'];
+                const exchangeRate = await getExchangeRate(currencyInfo.currency);
+                console.log(`💱 Taxa BRL → ${currencyInfo.currency}:`, exchangeRate);
+                
+                userCurrency = {
+                    country: countryCode,
+                    currency: currencyInfo.currency,
+                    symbol: currencyInfo.symbol,
+                    name: currencyInfo.name,
+                    flag: currencyInfo.flag,
+                    exchangeRate: exchangeRate,
+                    detected: true
+                };
+                
+                updatePriceDisplay();
+                addCurrencySelector();
+                
+            } catch (error) {
+                console.error('Erro ao inicializar moeda:', error);
+            }
+        }
+
+        // Formatar moeda local
+        function formatCurrencyLocal(valueInBRL) {
+            const convertedValue = valueInBRL * userCurrency.exchangeRate;
+            return new Intl.NumberFormat(getLocaleForCurrency(userCurrency.currency), {
+                style: 'currency',
+                currency: userCurrency.currency,
+                minimumFractionDigits: userCurrency.currency === 'JPY' ? 0 : 2,
+                maximumFractionDigits: userCurrency.currency === 'JPY' ? 0 : 2
+            }).format(convertedValue);
+        }
+
+        function getLocaleForCurrency(currency) {
+            const localeMap = {
+                'USD': 'en-US', 'EUR': 'de-DE', 'GBP': 'en-GB', 'JPY': 'ja-JP',
+                'ARS': 'es-AR', 'CLP': 'es-CL', 'COP': 'es-CO', 'MXN': 'es-MX',
+                'PEN': 'es-PE', 'BRL': 'pt-BR', 'CAD': 'en-CA', 'AUD': 'en-AU'
+            };
+            return localeMap[currency] || 'en-US';
+        }
+
+        // Atualizar exibição de preço
+        function updatePriceDisplay() {
+            if (!checkoutData) return;
+            
+            const priceElement = document.getElementById('product-price');
+            const currencyNote = document.getElementById('currency-note');
+            const currencyNoteText = document.getElementById('currency-note-text');
+            
+            if (!priceElement) return;
+            
+            const precoBRL = checkoutData.produto_preco;
+            
+            if (userCurrency.currency !== 'BRL' && userCurrency.detected) {
+                // Mostrar preço convertido
+                priceElement.textContent = formatCurrencyLocal(precoBRL);
+                
+                // Mostrar nota de conversão
+                currencyNoteText.textContent = `Equivalente a ${formatCurrency(precoBRL)} • Cobrado em BRL`;
+                currencyNote.classList.remove('hidden');
+            } else {
+                priceElement.textContent = formatCurrency(precoBRL);
+                currencyNote.classList.add('hidden');
+            }
+            
+            // Atualizar parcelas
+            generateInstallmentOptions();
+        }
+
+        // Adicionar seletor de moeda
+        function addCurrencySelector() {
+            const container = document.getElementById('currency-selector-container');
+            if (!container || container.innerHTML) return;
+            
+            const currencies = [
+                { code: 'BRL', flag: '🇧🇷' },
+                { code: 'USD', flag: '🇺🇸' },
+                { code: 'EUR', flag: '🇪🇺' },
+                { code: 'GBP', flag: '🇬🇧' },
+                { code: 'ARS', flag: '🇦🇷' },
+                { code: 'CLP', flag: '🇨🇱' },
+                { code: 'MXN', flag: '🇲🇽' },
+                { code: 'COP', flag: '🇨🇴' },
+                { code: 'PEN', flag: '🇵🇪' },
+            ];
+            
+            container.innerHTML = `
+                <div class="currency-selector">
+                    <span>🌍</span>
+                    <span>Moeda:</span>
+                    <select id="currency-select">
+                        ${currencies.map(c => 
+                            `<option value="${c.code}" ${userCurrency.currency === c.code ? 'selected' : ''}>
+                                ${c.flag} ${c.code}
+                            </option>`
+                        ).join('')}
+                    </select>
+                </div>
+            `;
+            
+            document.getElementById('currency-select').addEventListener('change', async (e) => {
+                const newCurrency = e.target.value;
+                const currencyInfo = Object.values(COUNTRY_TO_CURRENCY).find(c => c.currency === newCurrency) 
+                    || COUNTRY_TO_CURRENCY['BR'];
+                
+                const exchangeRate = await getExchangeRate(newCurrency);
+                
+                userCurrency = {
+                    ...userCurrency,
+                    currency: currencyInfo.currency,
+                    symbol: currencyInfo.symbol,
+                    name: currencyInfo.name,
+                    exchangeRate: exchangeRate,
+                    detected: true
+                };
+                
+                updatePriceDisplay();
+            });
+        }
 
         // ============================================
         // ESTADO GLOBAL
@@ -1252,7 +1509,7 @@
                 logoContainer.innerHTML = `<div class="logo-placeholder">${initial}</div>`;
             }
 
-            // Logo do produto (usa a mesma logo)
+            // Logo do produto
             const productLogoContainer = document.getElementById('product-logo-container');
             if (checkoutData.logo_url) {
                 productLogoContainer.innerHTML = `<img src="${checkoutData.logo_url}" alt="Logo" class="product-logo">`;
@@ -1268,6 +1525,9 @@
             document.title = `Checkout - ${checkoutData.produto_nome}`;
 
             generateInstallmentOptions();
+            
+            // Inicializar sistema de moeda APÓS renderizar
+            initializeCurrencySystem();
         }
 
         // ============================================
@@ -1286,15 +1546,27 @@
                 option.value = i;
 
                 if (i === 1) {
-                    option.textContent = `1x de ${formatCurrency(preco)} sem juros`;
+                    const valorDisplay = userCurrency.currency !== 'BRL' && userCurrency.detected 
+                        ? formatCurrencyLocal(preco) 
+                        : formatCurrency(preco);
+                    option.textContent = `1x de ${valorDisplay} sem juros`;
                 } else {
                     if (repassarJuros) {
                         const valorParcela = calculateInstallment(preco, i, INTEREST_RATE);
                         const valorTotal = valorParcela * i;
-                        option.textContent = `${i}x de ${formatCurrency(valorParcela)} (Total: ${formatCurrency(valorTotal)})`;
+                        const parcelaDisplay = userCurrency.currency !== 'BRL' && userCurrency.detected 
+                            ? formatCurrencyLocal(valorParcela) 
+                            : formatCurrency(valorParcela);
+                        const totalDisplay = userCurrency.currency !== 'BRL' && userCurrency.detected 
+                            ? formatCurrencyLocal(valorTotal) 
+                            : formatCurrency(valorTotal);
+                        option.textContent = `${i}x de ${parcelaDisplay} (Total: ${totalDisplay})`;
                     } else {
                         const valorParcela = preco / i;
-                        option.textContent = `${i}x de ${formatCurrency(valorParcela)} sem juros`;
+                        const parcelaDisplay = userCurrency.currency !== 'BRL' && userCurrency.detected 
+                            ? formatCurrencyLocal(valorParcela) 
+                            : formatCurrency(valorParcela);
+                        option.textContent = `${i}x de ${parcelaDisplay} sem juros`;
                     }
                 }
 
@@ -1566,7 +1838,6 @@
         }
 
         function accessApp() {
-            // Pega slug do checkoutData, ou extrai da URL como fallback
             const slug = checkoutData.slug || window.location.pathname.split('/').filter(Boolean)[0];
             if (slug) {
                 window.open(`https://${slug}.ionperiodization.com`, '_blank');
@@ -1579,13 +1850,11 @@
             document.getElementById('checkout-form').classList.add('hidden');
             document.getElementById('result-pending').classList.remove('hidden');
 
-            // Copiar logo
             const logoContainer = document.getElementById('logo-container').innerHTML;
             document.getElementById('pending-logo-container').innerHTML = logoContainer;
             document.getElementById('pending-personal-name').textContent = 
                 checkoutData.personal_nome || checkoutData.company_name;
 
-            // Dados
             document.getElementById('pending-product').textContent = checkoutData.produto_nome;
             
             const valor = result.valor_cobrado 
@@ -1593,47 +1862,33 @@
                 : formatCurrency(checkoutData.produto_preco);
             document.getElementById('pending-value').textContent = valor;
 
-            // ============================================
-            // PIX - CORRIGIDO: usar result.pix
-            // ============================================
             if (selectedMethod === 'pix') {
                 document.getElementById('pending-subtitle').textContent = 
                     'Escaneie o QR Code ou copie o código para pagar.';
                 document.getElementById('qr-code-section').classList.remove('hidden');
                 
-                // CORRIGIDO: result.pix.qrcode_url (não result.cobranca.qr_code_url)
                 if (result.pix?.qrcode_url) {
                     document.getElementById('qr-code-img').src = result.pix.qrcode_url;
-                    console.log('QR Code URL:', result.pix.qrcode_url);
                 }
                 
-                // CORRIGIDO: result.pix.qrcode (não result.cobranca.qr_code)
                 if (result.pix?.qrcode) {
                     document.getElementById('pix-code').textContent = result.pix.qrcode;
-                    console.log('PIX Code:', result.pix.qrcode.substring(0, 50) + '...');
                 }
                 
                 document.getElementById('expires-time').textContent = '24 horas';
             }
 
-            // ============================================
-            // BOLETO - CORRIGIDO: usar result.boleto
-            // ============================================
             if (selectedMethod === 'boleto') {
                 document.getElementById('pending-subtitle').textContent = 
                     'Copie a linha digitável ou abra o boleto para pagar.';
                 document.getElementById('boleto-section').classList.remove('hidden');
                 
-                // CORRIGIDO: result.boleto.linha_digitavel (não result.cobranca.boleto_barcode)
                 if (result.boleto?.linha_digitavel) {
                     document.getElementById('boleto-code').textContent = result.boleto.linha_digitavel;
-                    console.log('Linha digitável:', result.boleto.linha_digitavel);
                 }
                 
-                // CORRIGIDO: result.boleto.url (não result.cobranca.boleto_url)
                 if (result.boleto?.url) {
                     boletoUrl = result.boleto.url;
-                    console.log('Boleto URL:', boletoUrl);
                 }
                 
                 document.getElementById('expires-time').textContent = '3 dias úteis';
